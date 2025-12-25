@@ -10,7 +10,6 @@ router.get('/', async (req, res) => {
     let query = `
       SELECT ch.*, 
              COALESCE(ie.is_emri_no, ch.cari_no) as is_emri_no,
-             ie.arac_tipi, 
              COALESCE(ch.plaka, ie.plaka) as plaka,
              COALESCE(ch.musteri_adi, m.ad_soyad) as musteri_adi_full,
              ch.fatura_tutari as toplam_tutar,
@@ -173,7 +172,7 @@ router.get('/:id', async (req, res) => {
     const cariResult = await pool.query(
       `SELECT ch.*, 
               COALESCE(ie.is_emri_no, ch.cari_no) as is_emri_no,
-              ie.arac_tipi, ie.aciklama as is_emri_aciklama, 
+              ie.aciklama as is_emri_aciklama, 
               COALESCE(ch.plaka, ie.plaka) as plaka,
               COALESCE(ch.musteri_adi, m.ad_soyad) as musteri_adi_full, 
               m.telefon, m.adres,
