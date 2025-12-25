@@ -2,15 +2,20 @@ const pool = require('./database');
 
 const initDatabase = async () => {
   try {
-    // Önce tüm verileri temizle
-    console.log('Veriler temizleniyor...');
-    await pool.query('TRUNCATE TABLE odemeler CASCADE');
-    await pool.query('TRUNCATE TABLE parca_iscilik CASCADE');
-    await pool.query('TRUNCATE TABLE cari_hesap CASCADE');
-    await pool.query('TRUNCATE TABLE is_emirleri CASCADE');
-    await pool.query('TRUNCATE TABLE araclar CASCADE');
-    await pool.query('TRUNCATE TABLE musteriler RESTART IDENTITY CASCADE');
-    console.log('✓ Tüm veriler temizlendi');
+    // Production ortamında tabloları temizleme, sadece oluştur
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (!isProduction) {
+      // Önce tüm verileri temizle (sadece development'da)
+      console.log('Veriler temizleniyor...');
+      await pool.query('TRUNCATE TABLE odemeler CASCADE');
+      await pool.query('TRUNCATE TABLE parca_iscilik CASCADE');
+      await pool.query('TRUNCATE TABLE cari_hesap CASCADE');
+      await pool.query('TRUNCATE TABLE is_emirleri CASCADE');
+      await pool.query('TRUNCATE TABLE araclar CASCADE');
+      await pool.query('TRUNCATE TABLE musteriler RESTART IDENTITY CASCADE');
+      console.log('✓ Tüm veriler temizlendi');
+    }
     
     // Müşteriler tablosu
     await pool.query(`

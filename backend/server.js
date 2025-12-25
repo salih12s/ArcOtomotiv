@@ -9,6 +9,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Database initialization
+const initDatabase = require('./config/initDatabase');
+
+// Initialize database on startup (production ortamında sadece tablo oluşturma)
+initDatabase().then(() => {
+  console.log('✓ Veritabanı hazırlandı');
+}).catch(err => {
+  console.error('❌ Veritabanı hazırlama hatası:', err);
+});
+
 // Routes
 const musterilerRoutes = require('./routes/musteriler');
 const araclarRoutes = require('./routes/araclar');
