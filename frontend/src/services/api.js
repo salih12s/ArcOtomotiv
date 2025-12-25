@@ -75,6 +75,7 @@ export const cariHesapAPI = {
   searchBySirket: (sirketAdi) => api.get(`/cari-hesap/ara/sirket/${encodeURIComponent(sirketAdi)}`),
   getOdenmemis: () => api.get('/cari-hesap/durum/odenmemis'),
   getSirketIstatistik: (sirketAdi) => api.get(`/cari-hesap/sirket/${encodeURIComponent(sirketAdi)}/istatistik`),
+  updateBySirket: (sirketAdi, data) => api.put(`/cari-hesap/sirket/guncelle/${encodeURIComponent(sirketAdi)}`, data),
 };
 
 // Raporlar

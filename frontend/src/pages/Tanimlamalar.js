@@ -273,6 +273,7 @@ function Tanimlamalar() {
                 type="number"
                 value={formData.varsayilanFiyat}
                 onChange={(e) => setFormData({ ...formData, varsayilanFiyat: e.target.value })}
+                onFocus={(e) => e.target.select()}
                 InputProps={{
                   endAdornment: <InputAdornment position="end">₺</InputAdornment>,
                 }}

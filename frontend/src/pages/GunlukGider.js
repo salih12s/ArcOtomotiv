@@ -629,6 +629,7 @@ function GunlukGider() {
                 type="number"
                 value={formData.tutar}
                 onChange={handleInputChange}
+                onFocus={(e) => e.target.select()}
                 InputProps={{
                   startAdornment: <InputAdornment position="start">₺</InputAdornment>,
                 }}
@@ -716,6 +717,7 @@ function GunlukGider() {
                 type="number"
                 value={formData.tutar}
                 onChange={handleInputChange}
+                onFocus={(e) => e.target.select()}
                 InputProps={{
                   startAdornment: <InputAdornment position="start">₺</InputAdornment>,
                 }}

@@ -363,23 +363,31 @@ router.put('/:id', async (req, res) => {
       km, 
       yapilan_islem, 
       fatura_tutari, 
-      odenen_tutar 
+      odenen_tutar,
+      durum
     } = req.body;
 
+    // Boş string'leri null'a çevir
+    const cleanKm = km === '' || km === undefined || km === null ? null : km;
+    const cleanFaturaTutari = fatura_tutari === '' || fatura_tutari === undefined ? null : fatura_tutari;
+    const cleanOdenenTutar = odenen_tutar === '' || odenen_tutar === undefined ? null : odenen_tutar;
+
+    // Sadece gönderilen alanları güncelle
     const result = await pool.query(
       `UPDATE cari_hesap 
-       SET musteri_adi = $1, 
-           plaka = $2, 
-           tarih = $3, 
-           km = $4, 
-           yapilan_islem = $5, 
-           fatura_tutari = $6::numeric, 
-           odenen_tutar = $7::numeric,
-           kalan_tutar = $6::numeric - $7::numeric,
+       SET musteri_adi = COALESCE($1, musteri_adi), 
+           plaka = COALESCE($2, plaka), 
+           tarih = COALESCE($3, tarih), 
+           km = COALESCE($4, km), 
+           yapilan_islem = COALESCE($5, yapilan_islem), 
+           fatura_tutari = COALESCE($6::numeric, fatura_tutari), 
+           odenen_tutar = COALESCE($7::numeric, odenen_tutar),
+           kalan_tutar = COALESCE($6::numeric, fatura_tutari) - COALESCE($7::numeric, odenen_tutar),
+           durum = COALESCE($8, durum),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8
+       WHERE id = $9
        RETURNING *`,
-      [musteri_adi, plaka, tarih, km, yapilan_islem, fatura_tutari, odenen_tutar, id]
+      [musteri_adi, plaka, tarih, cleanKm, yapilan_islem, cleanFaturaTutari, cleanOdenenTutar, durum, id]
     );
     
     if (result.rows.length === 0) {
@@ -389,7 +397,7 @@ router.put('/:id', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Cari güncelleme hatası:', error);
-    res.status(500).json({ error: 'Cari hesap güncellenemedi' });
+    res.status(500).json({ error: 'Cari hesap güncellenemedi', details: error.message });
   }
 });
 
@@ -524,6 +532,8 @@ router.get('/sirket/:sirketAdi/istatistik', async (req, res) => {
     const { sirketAdi } = req.params;
     const decodedSirketAdi = decodeURIComponent(sirketAdi);
     
+    console.log('Şirket istatistik isteği:', decodedSirketAdi);
+    
     // Toplam borç, ödenen, kalan ve kayıt sayısı
     const genelQuery = await pool.query(`
       SELECT 
@@ -537,28 +547,53 @@ router.get('/sirket/:sirketAdi/istatistik', async (req, res) => {
       WHERE sirket_adi = $1
     `, [decodedSirketAdi]);
     
-    // Son 5 ödeme
-    const sonOdemelerQuery = await pool.query(`
-      SELECT o.*, ch.cari_no, ch.musteri_adi, ch.plaka
-      FROM odemeler o
-      JOIN cari_hesap ch ON o.cari_hesap_id = ch.id
-      WHERE ch.sirket_adi = $1
-      ORDER BY o.tarih DESC, o.id DESC
-      LIMIT 5
-    `, [decodedSirketAdi]);
+    // Son 5 ödeme - daha basit sorgu
+    let sonOdemelerQuery;
+    try {
+      sonOdemelerQuery = await pool.query(`
+        SELECT 
+          id,
+          cari_hesap_id,
+          odeme_tutari as tutar,
+          odeme_turu,
+          odeme_tarihi as tarih,
+          aciklama
+        FROM odemeler 
+        WHERE cari_hesap_id IN (
+          SELECT id FROM cari_hesap WHERE sirket_adi = $1
+        )
+        ORDER BY odeme_tarihi DESC, id DESC
+        LIMIT 5
+      `, [decodedSirketAdi]);
+    } catch (err) {
+      console.error('Ödeme sorgusu hatası:', err);
+      sonOdemelerQuery = { rows: [] };
+    }
     
     // Aylık özet (son 6 ay)
-    const aylikOzetQuery = await pool.query(`
-      SELECT 
-        TO_CHAR(DATE_TRUNC('month', tarih), 'YYYY-MM') as ay,
-        COALESCE(SUM(fatura_tutari), 0) as toplam_borc,
-        COALESCE(SUM(odenen_tutar), 0) as toplam_odenen
-      FROM cari_hesap 
-      WHERE sirket_adi = $1 
-        AND tarih >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months'
-      GROUP BY DATE_TRUNC('month', tarih)
-      ORDER BY ay DESC
-    `, [decodedSirketAdi]);
+    let aylikOzetQuery;
+    try {
+      aylikOzetQuery = await pool.query(`
+        SELECT 
+          TO_CHAR(DATE_TRUNC('month', tarih), 'YYYY-MM') as ay,
+          COALESCE(SUM(fatura_tutari), 0) as toplam_borc,
+          COALESCE(SUM(odenen_tutar), 0) as toplam_odenen
+        FROM cari_hesap 
+        WHERE sirket_adi = $1 
+          AND tarih >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '5 months'
+        GROUP BY DATE_TRUNC('month', tarih)
+        ORDER BY ay DESC
+      `, [decodedSirketAdi]);
+    } catch (err) {
+      console.error('Aylık özet sorgusu hatası:', err);
+      aylikOzetQuery = { rows: [] };
+    }
+    
+    console.log('Şirket istatistik sonucu:', {
+      genel: genelQuery.rows[0],
+      sonOdemelerCount: sonOdemelerQuery.rows.length,
+      aylikOzetCount: aylikOzetQuery.rows.length
+    });
     
     res.json({
       genel: genelQuery.rows[0],
@@ -567,7 +602,31 @@ router.get('/sirket/:sirketAdi/istatistik', async (req, res) => {
     });
   } catch (error) {
     console.error('Şirket istatistik hatası:', error);
-    res.status(500).json({ error: 'Şirket istatistikleri getirilemedi' });
+    res.status(500).json({ error: 'Şirket istatistikleri getirilemedi', details: error.message });
+  }
+});
+
+// Şirket adına göre kayıtları güncelle (şirket silme işlemi için)
+router.put('/sirket/guncelle/:sirketAdi', async (req, res) => {
+  try {
+    const { sirketAdi } = req.params;
+    const { sirket_adi, kayit_tipi } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE cari_hesap 
+       SET sirket_adi = $1, kayit_tipi = $2
+       WHERE sirket_adi = $3
+       RETURNING *`,
+      [sirket_adi, kayit_tipi || 'normal', decodeURIComponent(sirketAdi)]
+    );
+    
+    res.json({ 
+      message: `${result.rowCount} kayıt güncellendi`,
+      updated: result.rowCount 
+    });
+  } catch (error) {
+    console.error('Şirket kayıtları güncelleme hatası:', error);
+    res.status(500).json({ error: 'Şirket kayıtları güncellenemedi' });
   }
 });
 

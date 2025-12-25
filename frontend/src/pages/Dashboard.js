@@ -31,6 +31,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -50,6 +51,7 @@ import {
   AccountBalance as AccountBalanceIcon,
   Receipt as ReceiptIcon,
   ShoppingCart as ShoppingCartIcon,
+  Payment as PaymentIcon,
 } from '@mui/icons-material';
 import { raporAPI, isEmriAPI, musteriAPI, cariHesapAPI, giderAPI, disAlimAPI } from '../services/api';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -132,6 +134,19 @@ function Dashboard({ isAdmin }) {
   const [selectedIsEmri, setSelectedIsEmri] = useState(null);
   const [formData, setFormData] = useState(emptyFormData);
   const [saving, setSaving] = useState(false);
+  
+  // Cari hesaba at dialog
+  const [cariDialog, setCariDialog] = useState(false);
+  const [cariIsEmri, setCariIsEmri] = useState(null);
+  const [secilenSirket, setSecilenSirket] = useState('');
+  const [mevcutSirketler, setMevcutSirketler] = useState([]);
+  const [yeniSirketAdi, setYeniSirketAdi] = useState('');
+
+  // Ödeme al dialog
+  const [odemeDialog, setOdemeDialog] = useState(false);
+  const [odemeIsEmri, setOdemeIsEmri] = useState(null);
+  const [odemeTutari, setOdemeTutari] = useState('');
+  const [odemeTuru, setOdemeTuru] = useState('Nakit');
 
   const fetchData = async () => {
     try {
@@ -197,66 +212,95 @@ function Dashboard({ isAdmin }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [durumFiltre]);
 
-  // Cari hesaba at fonksiyonu - direkt cari hesap tablosuna kaydet
-  // Eğer müşteri adı şirket adıyla eşleşiyorsa otomatik olarak o şirkete atar
-  const handleCariHesabaAt = async (isEmri) => {
+  // Cari hesaba at dialog'unu aç
+  const handleCariDialogOpen = async (isEmri) => {
     const kalan = (parseFloat(isEmri.toplam_tutar) || 0) - (parseFloat(isEmri.odenen_tutar) || 0);
     
     if (kalan <= 0) {
       showError('Bu iş emrinde kalan borç bulunmuyor');
       return;
     }
+    
+    // Mevcut şirketleri localStorage'dan ve API'den al
+    const savedSirketler = JSON.parse(localStorage.getItem('cariHesapSirketler') || '[]');
+    
+    try {
+      const cariRes = await cariHesapAPI.getAll();
+      const dbSirketler = [...new Set((cariRes.data || [])
+        .filter(item => item.sirket_adi && item.sirket_adi.trim() !== '')
+        .map(item => item.sirket_adi)
+      )];
+      const tumSirketler = [...new Set([...dbSirketler, ...savedSirketler])];
+      setMevcutSirketler(tumSirketler);
+    } catch (err) {
+      setMevcutSirketler(savedSirketler);
+    }
+    
+    setCariIsEmri(isEmri);
+    setSecilenSirket('');
+    setYeniSirketAdi('');
+    setCariDialog(true);
+  };
+
+  // Cari hesaba at - seçilen şirketle kaydet
+  const handleCariHesabaAt = async () => {
+    if (!cariIsEmri) return;
+    
+    // Şirket adını belirle
+    let sirketAdi = null;
+    if (secilenSirket === '__yeni__' && yeniSirketAdi.trim()) {
+      sirketAdi = yeniSirketAdi.trim();
+      // Yeni şirketi localStorage'a ekle
+      const saved = JSON.parse(localStorage.getItem('cariHesapSirketler') || '[]');
+      if (!saved.includes(sirketAdi)) {
+        localStorage.setItem('cariHesapSirketler', JSON.stringify([...saved, sirketAdi]));
+      }
+    } else if (secilenSirket && secilenSirket !== '__genel__') {
+      sirketAdi = secilenSirket;
+    }
 
     try {
-      // Müşteri adına göre cari hesapta aynı isimli şirket var mı kontrol et
-      let sirketAdi = null;
-      if (isEmri.musteri_adi && isEmri.musteri_adi.trim()) {
-        try {
-          const sirketRes = await cariHesapAPI.searchBySirket(isEmri.musteri_adi.trim());
-          if (sirketRes.data && sirketRes.data.length > 0) {
-            // Aynı isimli şirket bulundu, bu şirkete bağla
-            sirketAdi = sirketRes.data[0].sirket_adi;
-          }
-        } catch (searchError) {
-          console.log('Şirket araması yapılamadı:', searchError);
-        }
-      }
-
-      // Cari hesap tablosuna direkt kaydet
+      setSaving(true);
+      
+      // Cari hesap tablosuna kaydet
       await cariHesapAPI.create({
-        musteri_adi: isEmri.musteri_adi || '',
-        tarih: isEmri.created_at ? new Date(isEmri.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        fatura_tutari: isEmri.toplam_tutar || 0,
-        odenen_tutar: isEmri.odenen_tutar || 0, // İş emrinde yapılan ödemeleri göster
-        yapilan_islem: Array.isArray(isEmri.islem_turu) ? isEmri.islem_turu.join(', ') : (isEmri.islem_turu || ''),
+        musteri_adi: cariIsEmri.musteri_adi || '',
+        plaka: cariIsEmri.plaka || '',
+        tarih: cariIsEmri.created_at ? new Date(cariIsEmri.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        fatura_tutari: cariIsEmri.toplam_tutar || 0,
+        odenen_tutar: cariIsEmri.odenen_tutar || 0,
+        yapilan_islem: Array.isArray(cariIsEmri.islem_turu) ? cariIsEmri.islem_turu.join(', ') : (cariIsEmri.islem_turu || ''),
         durum: 'Beklemede',
         odeme_turu: 'Ödenmedi',
-        is_emri_id: isEmri.id,
-        sirket_adi: sirketAdi, // Eşleşen şirket varsa buraya eklenir
-        kayit_tipi: sirketAdi ? 'sirket' : 'normal', // Şirket bulunduysa 'sirket' olarak işaretle
+        is_emri_id: cariIsEmri.id,
+        sirket_adi: sirketAdi,
+        kayit_tipi: sirketAdi ? 'sirket' : 'normal',
       });
 
       // İş emrini cari olarak işaretle
-      await isEmriAPI.update(isEmri.id, {
-        plaka: isEmri.plaka,
-        arac_tipi: isEmri.arac_tipi,
-        sasi_no: isEmri.sasi_no,
-        renk: isEmri.renk,
-        toplam_tutar: isEmri.toplam_tutar,
-        odenen_tutar: isEmri.odenen_tutar,
-        islem_turu: isEmri.islem_turu,
-        aciklama: isEmri.aciklama,
-        durum: isEmri.durum,
+      await isEmriAPI.update(cariIsEmri.id, {
+        plaka: cariIsEmri.plaka,
+        arac_tipi: cariIsEmri.arac_tipi,
+        sasi_no: cariIsEmri.sasi_no,
+        renk: cariIsEmri.renk,
+        toplam_tutar: cariIsEmri.toplam_tutar,
+        odenen_tutar: cariIsEmri.odenen_tutar,
+        islem_turu: cariIsEmri.islem_turu,
+        aciklama: cariIsEmri.aciklama,
+        durum: cariIsEmri.durum,
         kayit_turu: 'cari',
         cari_musteri: true,
         odeme_durumu: 'odenmedi'
       });
 
       if (sirketAdi) {
-        showSuccess(`"${sirketAdi}" şirketine otomatik olarak eklendi`);
+        showSuccess(`"${sirketAdi}" şirketine eklendi`);
       } else {
-        showSuccess('Cari hesaba eklendi');
+        showSuccess('Genel cari hesaba eklendi');
       }
+      
+      setCariDialog(false);
+      setCariIsEmri(null);
       fetchData();
     } catch (error) {
       console.error('Cari hesaba atarken hata:', error);
@@ -265,6 +309,71 @@ function Dashboard({ isAdmin }) {
       } else {
         showError('Cari hesaba eklenirken hata oluştu');
       }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Ödeme al dialog aç
+  const handleOdemeDialogOpen = (isEmri) => {
+    const kalan = (parseFloat(isEmri.toplam_tutar) || 0) - (parseFloat(isEmri.odenen_tutar) || 0);
+    if (kalan <= 0) {
+      showError('Bu iş emrinde kalan borç bulunmuyor');
+      return;
+    }
+    setOdemeIsEmri(isEmri);
+    setOdemeTutari(kalan.toString());
+    setOdemeTuru('Nakit');
+    setOdemeDialog(true);
+  };
+
+  // Ödeme kaydet
+  const handleOdemeKaydet = async () => {
+    if (!odemeTutari || Number(odemeTutari) <= 0) {
+      showError('Geçerli bir tutar girin');
+      return;
+    }
+
+    const kalan = (parseFloat(odemeIsEmri.toplam_tutar) || 0) - (parseFloat(odemeIsEmri.odenen_tutar) || 0);
+    if (Number(odemeTutari) > kalan) {
+      showError('Ödeme tutarı kalan borçtan fazla olamaz');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      // Ödeme yap
+      await isEmriAPI.odemeYap(odemeIsEmri.id, {
+        odeme_tutari: Number(odemeTutari),
+        odeme_turu: odemeTuru,
+        aciklama: 'Ödeme alındı',
+      });
+
+      // Yeni ödenen tutarı hesapla
+      const yeniOdenenTutar = (parseFloat(odemeIsEmri.odenen_tutar) || 0) + Number(odemeTutari);
+      const yeniKalan = (parseFloat(odemeIsEmri.toplam_tutar) || 0) - yeniOdenenTutar;
+
+      // Borç sıfırlandıysa durumu Tamamlandı yap
+      if (yeniKalan <= 0) {
+        await isEmriAPI.update(odemeIsEmri.id, {
+          ...odemeIsEmri,
+          odenen_tutar: yeniOdenenTutar,
+          durum: 'Tamamlandı'
+        });
+        showSuccess('Ödeme alındı ve iş emri tamamlandı');
+      } else {
+        showSuccess('Ödeme alındı');
+      }
+
+      setOdemeDialog(false);
+      setOdemeIsEmri(null);
+      fetchData();
+    } catch (error) {
+      console.error('Ödeme hatası:', error);
+      showError('Ödeme kaydedilirken hata oluştu');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -831,11 +940,18 @@ function Dashboard({ isAdmin }) {
                           </IconButton>
                         </Tooltip>
                         {((parseFloat(row.toplam_tutar) || 0) - (parseFloat(row.odenen_tutar) || 0)) > 0 && (
-                          <Tooltip title="Cari Hesaba At">
-                            <IconButton size="small" color="warning" onClick={() => handleCariHesabaAt(row)}>
-                              <AccountBalanceIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          <>
+                            <Tooltip title="Ödeme Al">
+                              <IconButton size="small" color="success" onClick={() => handleOdemeDialogOpen(row)}>
+                                <PaymentIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Cari Hesaba At">
+                              <IconButton size="small" color="warning" onClick={() => handleCariDialogOpen(row)}>
+                                <AccountBalanceIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
                         )}
                         <Tooltip title="Sil">
                           <IconButton size="small" color="error" onClick={() => handleDelete(row.id)}>
@@ -918,7 +1034,8 @@ function Dashboard({ isAdmin }) {
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
                             <TextField fullWidth size="small" type="number" value={parca.tutar}
-                              onChange={(e) => handleParcaGuncelle(index, 'tutar', e.target.value)} />
+                              onChange={(e) => handleParcaGuncelle(index, 'tutar', e.target.value)}
+                              onFocus={(e) => e.target.select()} />
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
                             <IconButton size="small" onClick={() => handleSeciliParcaSil(index)}><DeleteIcon fontSize="small" /></IconButton>
@@ -942,9 +1059,11 @@ function Dashboard({ isAdmin }) {
                     const parcaToplami = formData.seciliParcalar.reduce((sum, p) => sum + (parseFloat(p.tutar) || 0), 0);
                     setFormData({ ...formData, ek_tutar: e.target.value, toplam_tutar: parcaToplami + ekTutar });
                   }}
+                  onFocus={(e) => e.target.select()}
                   placeholder="İşçilik, servis ücreti vb." />
                 <TextField size="small" label="Ödenen ₺" type="number" value={formData.odenen_tutar} sx={{ flex: 1 }}
-                  onChange={(e) => setFormData({ ...formData, odenen_tutar: e.target.value })} />
+                  onChange={(e) => setFormData({ ...formData, odenen_tutar: e.target.value })}
+                  onFocus={(e) => e.target.select()} />
               </Box>
               
               {/* Toplam Gösterimi */}
@@ -1097,6 +1216,7 @@ function Dashboard({ isAdmin }) {
                               type="number"
                               value={parca.tutar}
                               onChange={(e) => handleParcaGuncelle(index, 'tutar', e.target.value)}
+                              onFocus={(e) => e.target.select()}
                             />
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
@@ -1134,9 +1254,11 @@ function Dashboard({ isAdmin }) {
                     const parcaToplami = formData.seciliParcalar.reduce((sum, p) => sum + (parseFloat(p.tutar) || 0), 0);
                     setFormData({ ...formData, ek_tutar: e.target.value, toplam_tutar: parcaToplami + ekTutar });
                   }}
+                  onFocus={(e) => e.target.select()}
                   placeholder="İşçilik, servis ücreti vb." />
                 <TextField size="small" label="Ödenen ₺" type="number" value={formData.odenen_tutar} sx={{ flex: 1 }}
-                  onChange={(e) => setFormData({ ...formData, odenen_tutar: e.target.value })} />
+                  onChange={(e) => setFormData({ ...formData, odenen_tutar: e.target.value })}
+                  onFocus={(e) => e.target.select()} />
               </Box>
               
               {/* Toplam Gösterimi */}
@@ -1378,6 +1500,153 @@ function Dashboard({ isAdmin }) {
               Beklemede
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Cari Hesaba At - Şirket Seçimi Dialog */}
+      <Dialog open={cariDialog} onClose={() => setCariDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Cari Hesaba At - Şirket Seçimi</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>{cariIsEmri?.musteri_adi}</strong> - <strong>{cariIsEmri?.plaka}</strong> kaydını hangi hesaba eklemek istiyorsunuz?
+          </Typography>
+          
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Şirket/Hesap Seçin</InputLabel>
+            <Select
+              value={secilenSirket}
+              onChange={(e) => setSecilenSirket(e.target.value)}
+              label="Şirket/Hesap Seçin"
+            >
+              <MenuItem value="__genel__">
+                <em>Genel Kayıtlar (Şirketsiz)</em>
+              </MenuItem>
+              <Divider />
+              {mevcutSirketler.map((sirket) => (
+                <MenuItem key={sirket} value={sirket}>{sirket}</MenuItem>
+              ))}
+              <Divider />
+              <MenuItem value="__yeni__">
+                <AddIcon sx={{ mr: 1 }} fontSize="small" />
+                Yeni Şirket Oluştur
+              </MenuItem>
+            </Select>
+          </FormControl>
+
+          {secilenSirket === '__yeni__' && (
+            <TextField
+              fullWidth
+              label="Yeni Şirket Adı"
+              value={yeniSirketAdi}
+              onChange={(e) => setYeniSirketAdi(e.target.value)}
+              autoFocus
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCariDialog(false)}>İptal</Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleCariHesabaAt}
+            disabled={saving || (secilenSirket === '__yeni__' && !yeniSirketAdi.trim()) || !secilenSirket}
+          >
+            {saving ? <CircularProgress size={20} /> : 'Cari Hesaba Ekle'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Ödeme Al Dialog */}
+      <Dialog open={odemeDialog} onClose={() => setOdemeDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ bgcolor: 'success.main', color: 'white' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PaymentIcon />
+            Ödeme Al
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {odemeIsEmri && (
+            <>
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Müşteri:</strong> {odemeIsEmri.musteri_adi}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Plaka:</strong> {odemeIsEmri.plaka}
+                </Typography>
+                <Divider sx={{ my: 1 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">Toplam:</Typography>
+                  <Typography variant="body2" fontWeight={600}>{formatCurrency(odemeIsEmri.toplam_tutar)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">Ödenen:</Typography>
+                  <Typography variant="body2" fontWeight={600} color="success.main">{formatCurrency(odemeIsEmri.odenen_tutar || 0)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">Kalan Borç:</Typography>
+                  <Typography variant="body2" fontWeight={700} color="error.main">
+                    {formatCurrency((parseFloat(odemeIsEmri.toplam_tutar) || 0) - (parseFloat(odemeIsEmri.odenen_tutar) || 0))}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <TextField
+                fullWidth
+                label="Ödeme Tutarı"
+                type="number"
+                value={odemeTutari}
+                onChange={(e) => setOdemeTutari(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                InputProps={{
+                  startAdornment: <Typography sx={{ mr: 1 }}>₺</Typography>,
+                }}
+                sx={{ mb: 2 }}
+              />
+
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Button 
+                  size="small" 
+                  variant="outlined"
+                  onClick={() => setOdemeTutari(((parseFloat(odemeIsEmri.toplam_tutar) || 0) - (parseFloat(odemeIsEmri.odenen_tutar) || 0)).toString())}
+                >
+                  Tamamı
+                </Button>
+                <Button 
+                  size="small" 
+                  variant="outlined"
+                  onClick={() => setOdemeTutari((((parseFloat(odemeIsEmri.toplam_tutar) || 0) - (parseFloat(odemeIsEmri.odenen_tutar) || 0)) / 2).toFixed(0))}
+                >
+                  Yarısı
+                </Button>
+              </Box>
+
+              <FormControl fullWidth>
+                <InputLabel>Ödeme Türü</InputLabel>
+                <Select
+                  value={odemeTuru}
+                  label="Ödeme Türü"
+                  onChange={(e) => setOdemeTuru(e.target.value)}
+                >
+                  <MenuItem value="Nakit">Nakit</MenuItem>
+                  <MenuItem value="Kredi Kartı">Kredi Kartı</MenuItem>
+                  <MenuItem value="Havale">Havale</MenuItem>
+                </Select>
+              </FormControl>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setOdemeDialog(false)}>İptal</Button>
+          <Button 
+            variant="contained" 
+            color="success" 
+            onClick={handleOdemeKaydet}
+            disabled={saving || !odemeTutari || Number(odemeTutari) <= 0}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <PaymentIcon />}
+          >
+            Ödeme Al
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

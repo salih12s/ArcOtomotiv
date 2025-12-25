@@ -44,12 +44,27 @@ router.get('/ozet', async (req, res) => {
         ) as bekleyen_odeme
     `);
     
-    // Aktif iş emirleri sayısı (Tamamlandı dışındaki tüm işler)
+    // Aktif iş emirleri sayısı (Tamamlandı dışındaki tüm işler - sadece is_emri)
     const aktifIsEmriResult = await pool.query(`
       SELECT COUNT(*) as aktif_is_emri
       FROM is_emirleri
       WHERE durum != 'Tamamlandı'
       AND (kayit_turu = 'is_emri' OR kayit_turu IS NULL)
+    `);
+    
+    // Aktif hasar işlemleri sayısı
+    const aktifHasarResult = await pool.query(`
+      SELECT COUNT(*) as aktif_hasar
+      FROM is_emirleri
+      WHERE durum != 'Tamamlandı'
+      AND kayit_turu = 'hasar'
+    `);
+    
+    // Aktif cari hesap sayısı (ödenmemiş)
+    const aktifCariResult = await pool.query(`
+      SELECT COUNT(*) as aktif_cari
+      FROM cari_hesap
+      WHERE durum != 'Ödendi' AND durum != 'Tamamlandı'
     `);
     
     // Tamamlanan iş emirleri sayısı (bu ay)
@@ -81,6 +96,8 @@ router.get('/ozet', async (req, res) => {
       toplam_gelir: parseFloat(toplamGelirResult.rows[0].toplam_gelir),
       bekleyen_odeme: parseFloat(bekleyenOdemeResult.rows[0].bekleyen_odeme),
       aktif_is_emri: parseInt(aktifIsEmriResult.rows[0].aktif_is_emri),
+      aktif_hasar: parseInt(aktifHasarResult.rows[0].aktif_hasar),
+      aktif_cari: parseInt(aktifCariResult.rows[0].aktif_cari),
       tamamlanan_is_emri: parseInt(tamamlananResult.rows[0].tamamlanan),
       bugunun_islemleri: parseInt(bugunkuIslemResult.rows[0].bugunun_islemleri),
       toplam_musteri: parseInt(musteriSayisiResult.rows[0].toplam_musteri)

@@ -177,7 +177,7 @@ function HasarIslemleri({ isAdmin }) {
         bu_ay_gelir: statsData.aylik_gelir || 0,
         toplam_gelir: statsData.toplam_gelir || 0,
         bekleyen_odeme: statsData.bekleyen_odeme || 0,
-        aktif_is_emirleri: statsData.aktif_is_emri || 0,
+        aktif_is_emirleri: statsData.aktif_hasar || 0,
       });
     } catch (error) {
       console.error('Veri yüklenemedi:', error);
@@ -915,6 +915,7 @@ function HasarIslemleri({ isAdmin }) {
                         toplam_tutar: formData.seciliParcalar.reduce((sum, p) => sum + (parseFloat(p.tutar) || 0), 0) + odenecekMiktar
                       });
                     }}
+                    onFocus={(e) => e.target.select()}
                     InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }} />
                 </Grid>
                 <Grid item xs={6}>
@@ -1119,6 +1120,7 @@ function HasarIslemleri({ isAdmin }) {
                 <Grid item xs={6}>
                   <TextField fullWidth size="small" label="Ödenecek Miktar" type="number" value={formData.odenecek_miktar}
                     onChange={(e) => setFormData({ ...formData, odenecek_miktar: e.target.value })}
+                    onFocus={(e) => e.target.select()}
                     InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }} />
                 </Grid>
                 <Grid item xs={6}>
@@ -1189,7 +1191,8 @@ function HasarIslemleri({ isAdmin }) {
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
                             <TextField fullWidth size="small" type="number" value={parca.tutar}
-                              onChange={(e) => handleParcaGuncelle(index, 'tutar', e.target.value)} />
+                              onChange={(e) => handleParcaGuncelle(index, 'tutar', e.target.value)}
+                              onFocus={(e) => e.target.select()} />
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
                             <IconButton size="small" onClick={() => handleSeciliParcaSil(index)}><DeleteIcon fontSize="small" /></IconButton>
@@ -1213,11 +1216,13 @@ function HasarIslemleri({ isAdmin }) {
                       const parcaToplami = formData.seciliParcalar.reduce((sum, p) => sum + (parseFloat(p.tutar) || 0), 0);
                       setFormData({ ...formData, ek_tutar: e.target.value, toplam_tutar: parcaToplami + ekTutar });
                     }}
+                    onFocus={(e) => e.target.select()}
                     InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }} />
                 </Grid>
                 <Grid item xs={6}>
                   <TextField fullWidth size="small" label="Ödenen Tutar" type="number" value={formData.odenen_tutar}
                     onChange={(e) => setFormData({ ...formData, odenen_tutar: e.target.value })}
+                    onFocus={(e) => e.target.select()}
                     InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }} />
                 </Grid>
               </Grid>
@@ -1310,6 +1315,7 @@ function HasarIslemleri({ isAdmin }) {
                     fullWidth
                     value={odemeTutari}
                     onChange={(e) => setOdemeTutari(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     InputProps={{
                       endAdornment: <Typography color="text.secondary">₺</Typography>
                     }}

@@ -748,6 +748,7 @@ function DisAlim() {
                             type="number"
                             value={kalem.miktar}
                             onChange={(e) => handleKalemGuncelle(index, 'miktar', e.target.value)}
+                            onFocus={(e) => e.target.select()}
                             sx={{ width: 80 }}
                             inputProps={{ min: 1 }}
                           />
@@ -758,6 +759,7 @@ function DisAlim() {
                             type="number"
                             value={kalem.birim_fiyat}
                             onChange={(e) => handleKalemGuncelle(index, 'birim_fiyat', e.target.value)}
+                            onFocus={(e) => e.target.select()}
                             sx={{ width: 100 }}
                             inputProps={{ min: 0 }}
                           />
@@ -876,6 +878,7 @@ function DisAlim() {
                 type="number"
                 value={odemeForm.odeme_tutari}
                 onChange={(e) => setOdemeForm({ ...odemeForm, odeme_tutari: e.target.value })}
+                onFocus={(e) => e.target.select()}
                 InputProps={{ inputProps: { min: 0 } }}
               />
             </Grid>

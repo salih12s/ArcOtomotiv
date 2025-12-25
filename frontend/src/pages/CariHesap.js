@@ -105,17 +105,28 @@ function CariHesap({ isAdmin }) {
 
   // Şirket tab sistemi
   const [activeTab, setActiveTab] = useState(0);
-  const [sirketler, setSirketler] = useState([]);
+  const [sirketler, setSirketler] = useState(() => {
+    // localStorage'dan şirketleri yükle
+    const saved = localStorage.getItem('cariHesapSirketler');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [sirketDialog, setSirketDialog] = useState(false);
   const [yeniSirketAdi, setYeniSirketAdi] = useState('');
+  const [sirketDuzenlemeModu, setSirketDuzenlemeModu] = useState(false);
   
   // Şirket istatistikleri
   const [sirketIstatistik, setSirketIstatistik] = useState(null);
   const [sirketIstatistikLoading, setSirketIstatistikLoading] = useState(false);
 
+  // Şirketler değiştiğinde localStorage'a kaydet
+  useEffect(() => {
+    if (sirketler.length > 0) {
+      localStorage.setItem('cariHesapSirketler', JSON.stringify(sirketler));
+    }
+  }, [sirketler]);
+
   // Dialog states
   const [odemeDialog, setOdemeDialog] = useState(false);
-  const [gecmisDialog, setGecmisDialog] = useState(false);
   const [yeniIsEmriDialog, setYeniIsEmriDialog] = useState(false);
   const [detayDialog, setDetayDialog] = useState(false);
   const [silmeOnayDialog, setSilmeOnayDialog] = useState(false);
@@ -157,11 +168,20 @@ function CariHesap({ isAdmin }) {
       setCariHesaplar(data);
       
       // Benzersiz şirket adlarını çıkar
-      const uniqueSirketler = [...new Set(data
+      const dbSirketler = [...new Set(data
         .filter(item => item.sirket_adi && item.sirket_adi.trim() !== '')
         .map(item => item.sirket_adi)
       )];
-      setSirketler(uniqueSirketler);
+      
+      // localStorage'dan kayıtlı şirketleri de al
+      const savedSirketler = JSON.parse(localStorage.getItem('cariHesapSirketler') || '[]');
+      
+      // Veritabanı + localStorage şirketlerini birleştir
+      const tumSirketler = [...new Set([...dbSirketler, ...savedSirketler])];
+      setSirketler(tumSirketler);
+      
+      // Güncellenmiş listeyi localStorage'a kaydet
+      localStorage.setItem('cariHesapSirketler', JSON.stringify(tumSirketler));
       
       const statsData = statsRes.data || {};
       setStats({
@@ -169,7 +189,7 @@ function CariHesap({ isAdmin }) {
         bu_ay_gelir: statsData.aylik_gelir || 0,
         toplam_gelir: statsData.toplam_gelir || 0,
         bekleyen_odeme: statsData.bekleyen_odeme || 0,
-        aktif_is_emirleri: statsData.aktif_is_emri || 0,
+        aktif_is_emirleri: statsData.aktif_cari || 0,
       });
     } catch (error) {
       console.error('Cari hesaplar yüklenemedi:', error);
@@ -202,11 +222,47 @@ function CariHesap({ isAdmin }) {
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
     
-    // Eğer şirket tabı seçildiyse istatistikleri yükle
-    if (newValue > 0 && sirketler[newValue - 1]) {
-      fetchSirketIstatistik(sirketler[newValue - 1]);
+    // Şirket tabı seçildiyse istatistikleri yükle
+    if (newValue > 0) {
+      // sirketler array'inden şirket adını al
+      const sirketAdi = sirketler[newValue - 1];
+      if (sirketAdi) {
+        fetchSirketIstatistik(sirketAdi);
+      }
     } else {
       setSirketIstatistik(null);
+    }
+  };
+
+  // Şirket silme fonksiyonu
+  const handleSirketSil = async (sirketAdi, index) => {
+    if (!window.confirm(`"${sirketAdi}" şirketini silmek istediğinize emin misiniz?\n\nBu şirkete ait kayıtlar "Genel Kayıtlar" bölümüne taşınacak.`)) {
+      return;
+    }
+
+    try {
+      // Veritabanındaki bu şirkete ait kayıtları güncelle (sirket_adi'ni null yap)
+      await cariHesapAPI.updateBySirket(sirketAdi, { sirket_adi: null, kayit_tipi: 'normal' });
+      
+      // localStorage'dan şirketi kaldır
+      const yeniSirketler = sirketler.filter((s) => s !== sirketAdi);
+      setSirketler(yeniSirketler);
+      localStorage.setItem('cariHesapSirketler', JSON.stringify(yeniSirketler));
+      
+      // Aktif tab bu şirket ise Genel'e dön
+      if (activeTab === index + 1) {
+        setActiveTab(0);
+        setSirketIstatistik(null);
+      } else if (activeTab > index + 1) {
+        // Silinen tab'dan sonraki bir tab'daydık, index'i düzelt
+        setActiveTab(activeTab - 1);
+      }
+      
+      showSuccess(`"${sirketAdi}" şirketi silindi`);
+      fetchCariHesaplar();
+    } catch (error) {
+      console.error('Şirket silinirken hata:', error);
+      showError('Şirket silinirken hata oluştu');
     }
   };
 
@@ -486,21 +542,27 @@ function CariHesap({ isAdmin }) {
     
     const yeniSirket = yeniSirketAdi.trim();
     
+    // Dialog'u kapat
+    setSirketDialog(false);
+    
     // Şirketi hemen listeye ekle (tab görünsün)
     if (!sirketler.includes(yeniSirket)) {
-      setSirketler([...sirketler, yeniSirket]);
-      // Yeni şirketin tabına geç ve istatistikleri yükle
-      setActiveTab(sirketler.length + 1);
-      fetchSirketIstatistik(yeniSirket);
+      const yeniSirketler = [...sirketler, yeniSirket];
+      setSirketler(yeniSirketler);
+      // Yeni şirketin tabına geç
+      setTimeout(() => {
+        setActiveTab(yeniSirketler.length); // Genel Kayıtlar = 0, ilk şirket = 1
+        fetchSirketIstatistik(yeniSirket);
+      }, 100);
+      showSuccess(`"${yeniSirket}" şirketi oluşturuldu`);
     } else {
-      // Mevcut şirketin tabına geç ve istatistikleri yükle
+      // Mevcut şirketin tabına geç
       const sirketIndex = sirketler.indexOf(yeniSirket);
       setActiveTab(sirketIndex + 1);
       fetchSirketIstatistik(yeniSirket);
+      showSuccess(`"${yeniSirket}" şirketine geçildi`);
     }
     
-    // Formu aç
-    handleSirketSecVeKayitAc(yeniSirket);
     setYeniSirketAdi('');
   };
 
@@ -733,113 +795,69 @@ function CariHesap({ isAdmin }) {
           {/* Şirket Tabları */}
           {sirketler.length > 0 && (
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-              <Tabs 
-                value={activeTab} 
-                onChange={handleTabChange}
-                variant="scrollable"
-                scrollButtons="auto"
-                sx={{ 
-                  minHeight: 40,
-                  '& .MuiTab-root': { minHeight: 40, py: 1, fontSize: '0.8rem' }
-                }}
-              >
-                <Tab label="Genel Kayıtlar" icon={<AssignmentIcon sx={{ fontSize: 16 }} />} iconPosition="start" />
-                {sirketler.map((sirket, index) => (
-                  <Tab 
-                    key={index} 
-                    label={sirket} 
-                    icon={<BusinessIcon sx={{ fontSize: 16 }} />} 
-                    iconPosition="start"
-                  />
-                ))}
-              </Tabs>
-            </Box>
-          )}
-
-          {/* Şirket İstatistikleri - Sadece şirket tabı seçiliyken göster */}
-          {activeTab > 0 && sirketler[activeTab - 1] && (
-            <Box sx={{ mb: 3 }}>
-              {sirketIstatistikLoading ? (
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} variant="rounded" width={200} height={80} />
-                  ))}
-                </Box>
-              ) : sirketIstatistik ? (
-                <Card variant="outlined" sx={{ bgcolor: 'primary.lighter', borderColor: 'primary.light' }}>
-                  <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                    <Typography variant="subtitle2" color="primary" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <BusinessIcon fontSize="small" />
-                      {sirketler[activeTab - 1]} İstatistikleri
-                    </Typography>
-                    <Grid container spacing={3}>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" color="text.secondary">Toplam Borç</Typography>
-                          <Typography variant="h6" fontWeight={700} color="error.main">
-                            {formatCurrency(sirketIstatistik.genel?.toplam_borc || 0)}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" color="text.secondary">Toplam Ödenen</Typography>
-                          <Typography variant="h6" fontWeight={700} color="success.main">
-                            {formatCurrency(sirketIstatistik.genel?.toplam_odenen || 0)}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" color="text.secondary">Kalan Borç</Typography>
-                          <Typography variant="h6" fontWeight={700} color="warning.main">
-                            {formatCurrency(sirketIstatistik.genel?.toplam_kalan || 0)}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="body2" color="text.secondary">Kayıt Sayısı</Typography>
-                          <Typography variant="h6" fontWeight={700} color="primary.main">
-                            {sirketIstatistik.genel?.toplam_kayit || 0}
-                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                              ({sirketIstatistik.genel?.tamamlanan_kayit || 0} tamamlandı)
-                            </Typography>
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                    
-                    {/* Son ödemeler */}
-                    {sirketIstatistik.sonOdemeler && sirketIstatistik.sonOdemeler.length > 0 && (
-                      <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>Son Ödemeler:</Typography>
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                          {sirketIstatistik.sonOdemeler.slice(0, 3).map((odeme, idx) => (
-                            <Chip
-                              key={idx}
-                              size="small"
-                              label={`${formatDate(odeme.tarih)} - ${formatCurrency(odeme.tutar)} (${odeme.odeme_turu})`}
-                              variant="outlined"
-                              color="success"
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Tabs 
+                  value={activeTab} 
+                  onChange={handleTabChange}
+                  variant="scrollable"
+                  scrollButtons="auto"
+                  sx={{ 
+                    minHeight: 40,
+                    flex: 1,
+                    '& .MuiTab-root': { minHeight: 40, py: 1, fontSize: '0.8rem' }
+                  }}
+                >
+                  <Tab label="Genel Kayıtlar" icon={<AssignmentIcon sx={{ fontSize: 16 }} />} iconPosition="start" />
+                  {sirketler.map((sirket, index) => (
+                    <Tab 
+                      key={index} 
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {sirket}
+                          {sirketDuzenlemeModu && (
+                            <CloseIcon 
+                              sx={{ 
+                                fontSize: 14, 
+                                ml: 0.5, 
+                                color: 'error.main',
+                                cursor: 'pointer',
+                                '&:hover': { color: 'error.dark' }
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSirketSil(sirket, index);
+                              }}
                             />
-                          ))}
+                          )}
                         </Box>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : null}
+                      }
+                      icon={<BusinessIcon sx={{ fontSize: 16 }} />} 
+                      iconPosition="start"
+                    />
+                  ))}
+                </Tabs>
+                {sirketler.length > 0 && (
+                  <Button
+                    size="small"
+                    variant={sirketDuzenlemeModu ? "contained" : "text"}
+                    color={sirketDuzenlemeModu ? "primary" : "inherit"}
+                    onClick={() => setSirketDuzenlemeModu(!sirketDuzenlemeModu)}
+                    sx={{ fontSize: '0.7rem', py: 0.3, minHeight: 0, ml: 1 }}
+                  >
+                    {sirketDuzenlemeModu ? 'Tamam' : 'Düzenle'}
+                  </Button>
+                )}
+              </Box>
             </Box>
           )}
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
             <TextField
               size="small"
               placeholder="Ara... (Müşteri, Plaka, İş Emri No)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ flex: 1, maxWidth: { xs: '100%', sm: 400 } }}
+              sx={{ flex: 1, maxWidth: { xs: '100%', sm: 300 } }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -848,6 +866,48 @@ function CariHesap({ isAdmin }) {
                 ),
               }}
             />
+            
+            {/* Şirket İstatistikleri - Arama yanında kompakt gösterim */}
+            {activeTab > 0 && sirketler[activeTab - 1] && (
+              <>
+                {sirketIstatistikLoading ? (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Skeleton variant="rounded" width={120} height={36} />
+                    <Skeleton variant="rounded" width={120} height={36} />
+                    <Skeleton variant="rounded" width={120} height={36} />
+                  </Box>
+                ) : sirketIstatistik ? (
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <Chip
+                      icon={<WalletIcon />}
+                      label={`Toplam: ${formatCurrency(sirketIstatistik.genel?.toplam_borc || 0)}`}
+                      color="primary"
+                      variant="outlined"
+                      sx={{ fontWeight: 600 }}
+                    />
+                    <Chip
+                      icon={<TrendingUpIcon />}
+                      label={`Ödenen: ${formatCurrency(sirketIstatistik.genel?.toplam_odenen || 0)}`}
+                      color="success"
+                      variant="filled"
+                      sx={{ fontWeight: 600 }}
+                    />
+                    <Chip
+                      label={`Kalan: ${formatCurrency(sirketIstatistik.genel?.toplam_kalan || 0)}`}
+                      color={sirketIstatistik.genel?.toplam_kalan > 0 ? "error" : "success"}
+                      variant="filled"
+                      sx={{ fontWeight: 700, fontSize: '0.9rem' }}
+                    />
+                    <Chip
+                      size="small"
+                      label={`${sirketIstatistik.genel?.toplam_kayit || 0} kayıt`}
+                      color="default"
+                      variant="outlined"
+                    />
+                  </Box>
+                ) : null}
+              </>
+            )}
           </Box>
 
           <TableContainer component={Paper} variant="outlined">
@@ -1005,6 +1065,7 @@ function CariHesap({ isAdmin }) {
                   type="number"
                   value={odemeTutari}
                   onChange={(e) => setOdemeTutari(e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   InputProps={{
                     endAdornment: <InputAdornment position="end">₺</InputAdornment>,
                   }}
@@ -1501,6 +1562,7 @@ function CariHesap({ isAdmin }) {
                 fullWidth
                 value={duzenleFormData.km || ''}
                 onChange={(e) => setDuzenleFormData({...duzenleFormData, km: e.target.value})}
+                onFocus={(e) => e.target.select()}
               />
             </Grid>
 
@@ -1562,6 +1624,7 @@ function CariHesap({ isAdmin }) {
                                   fatura_tutari: yeniToplam
                                 });
                               }}
+                              onFocus={(e) => e.target.select()}
                             />
                           </TableCell>
                           <TableCell sx={{ py: 1 }}>
@@ -1606,6 +1669,7 @@ function CariHesap({ isAdmin }) {
                 fullWidth
                 value={duzenleFormData.fatura_tutari || 0}
                 onChange={(e) => setDuzenleFormData({...duzenleFormData, fatura_tutari: parseFloat(e.target.value) || 0})}
+                onFocus={(e) => e.target.select()}
                 InputProps={{
                   endAdornment: <Typography color="text.secondary">₺</Typography>
                 }}
@@ -1618,6 +1682,7 @@ function CariHesap({ isAdmin }) {
                 fullWidth
                 value={duzenleFormData.odenen_tutar || 0}
                 onChange={(e) => setDuzenleFormData({...duzenleFormData, odenen_tutar: parseFloat(e.target.value) || 0})}
+                onFocus={(e) => e.target.select()}
                 InputProps={{
                   endAdornment: <Typography color="text.secondary">₺</Typography>
                 }}
@@ -1760,6 +1825,7 @@ function CariHesap({ isAdmin }) {
                 type="number" 
                 value={formData.fatura_tutari}
                 onChange={(e) => setFormData({ ...formData, fatura_tutari: e.target.value })}
+                onFocus={(e) => e.target.select()}
                 InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }}
               />
             </Grid>
@@ -1855,6 +1921,7 @@ function CariHesap({ isAdmin }) {
                                 const toplamTutar = yeniParcalar.reduce((sum, p) => sum + (parseFloat(p.fiyat) || 0), 0);
                                 setFormData({ ...formData, parcalar: yeniParcalar, fatura_tutari: toplamTutar });
                               }}
+                              onFocus={(e) => e.target.select()}
                               InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }}
                               sx={{ width: 130 }}
                             />
@@ -1903,6 +1970,7 @@ function CariHesap({ isAdmin }) {
                 type="number" 
                 value={formData.odenen_tutar}
                 onChange={(e) => setFormData({ ...formData, odenen_tutar: e.target.value })}
+                onFocus={(e) => e.target.select()}
                 InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }}
               />
             </Grid>
