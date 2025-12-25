@@ -80,6 +80,21 @@ const fixMissingColumns = async () => {
     `);
     console.log('✅ parca_iscilik.tur kolonu eklendi/kontrol edildi');
     
+    await pool.query(`
+      ALTER TABLE parca_iscilik ADD COLUMN IF NOT EXISTS miktar INTEGER DEFAULT 1;
+    `);
+    console.log('✅ parca_iscilik.miktar kolonu eklendi/kontrol edildi');
+    
+    await pool.query(`
+      ALTER TABLE parca_iscilik ADD COLUMN IF NOT EXISTS birim_fiyat DECIMAL(12,2) DEFAULT 0;
+    `);
+    console.log('✅ parca_iscilik.birim_fiyat kolonu eklendi/kontrol edildi');
+    
+    await pool.query(`
+      ALTER TABLE parca_iscilik ADD COLUMN IF NOT EXISTS toplam DECIMAL(12,2) DEFAULT 0;
+    `);
+    console.log('✅ parca_iscilik.toplam kolonu eklendi/kontrol edildi');
+    
     // İş emirleri tablosunu kontrol et
     console.log('\nİş emirleri tablosu kontrol ediliyor...');
     
