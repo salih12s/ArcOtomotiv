@@ -50,7 +50,7 @@ import {
   Today as TodayIcon,
   Payment as PaymentIcon,
 } from '@mui/icons-material';
-import { isEmriAPI, musteriAPI, raporAPI, cariHesapAPI } from '../services/api';
+import { isEmriAPI, musteriAPI, raporAPI } from '../services/api';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import PrintHeader, { COMPANY_INFO } from '../components/PrintHeader';
 
