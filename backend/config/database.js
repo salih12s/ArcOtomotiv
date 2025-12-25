@@ -23,9 +23,9 @@ const localConfig = {
 };
 
 // Use Railway config in production, local config in development
-const pool = new Pool(
-  process.env.NODE_ENV === 'production' ? railwayConfig : localConfig
-);
+// Railway sets RAILWAY_ENVIRONMENT automatically
+const isProduction = process.env.RAILWAY_ENVIRONMENT === 'production' || process.env.PORT;
+const pool = new Pool(isProduction ? railwayConfig : localConfig);
 
 pool.on('connect', () => {
   console.log('PostgreSQL veritabanına bağlandı!');

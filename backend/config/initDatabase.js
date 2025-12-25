@@ -3,7 +3,7 @@ const pool = require('./database');
 const initDatabase = async () => {
   try {
     // Production ortamında tabloları temizleme, sadece oluştur
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = process.env.RAILWAY_ENVIRONMENT === 'production' || process.env.PORT;
     
     if (!isProduction) {
       // Önce tüm verileri temizle (sadece development'da)
