@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
              COALESCE(ch.plaka, ie.plaka) as plaka,
              COALESCE(ch.musteri_adi, m.ad_soyad) as musteri_adi_full,
              ch.fatura_tutari as toplam_tutar,
-             COALESCE(ch.kalan_borc, (ch.fatura_tutari - ch.odenen_tutar)) as kalan_borc,
+             (ch.fatura_tutari - COALESCE(ch.odenen_tutar, 0)) as kalan_borc,
              ch.sirket_adi,
              ch.kayit_tipi
       FROM cari_hesap ch

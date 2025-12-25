@@ -37,9 +37,9 @@ router.get('/ozet', async (req, res) => {
            AND id NOT IN (SELECT is_emri_id FROM cari_hesap WHERE is_emri_id IS NOT NULL)), 0
         ) + 
         COALESCE(
-          (SELECT SUM(kalan_borc) 
+          (SELECT SUM(fatura_tutari - COALESCE(odenen_tutar, 0)) 
            FROM cari_hesap 
-           WHERE kalan_borc > 0 
+           WHERE (fatura_tutari - COALESCE(odenen_tutar, 0)) > 0 
            AND durum != 'Ödendi'), 0
         ) as bekleyen_odeme
     `);
@@ -196,7 +196,7 @@ router.get('/gunluk-istatistik', async (req, res) => {
         ie.toplam_tutar,
         ie.odenen_tutar,
         ie.durum,
-        ie.is_turu,
+        ie.islem_turu,
         ie.giris_tarihi,
         ie.cikis_tarihi
       FROM is_emirleri ie
@@ -356,11 +356,11 @@ router.get('/islem-dagilimi', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        unnest(is_turu) as is_turu,
+        unnest(islem_turu) as islem_turu,
         COUNT(*) as sayi
       FROM is_emirleri
-      WHERE is_turu IS NOT NULL
-      GROUP BY unnest(is_turu)
+      WHERE islem_turu IS NOT NULL
+      GROUP BY unnest(islem_turu)
       ORDER BY sayi DESC
     `);
     res.json(result.rows);
