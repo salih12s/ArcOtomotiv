@@ -539,7 +539,7 @@ router.get('/sirket/:sirketAdi/istatistik', async (req, res) => {
         COUNT(*) as toplam_kayit,
         COALESCE(SUM(fatura_tutari), 0) as toplam_borc,
         COALESCE(SUM(odenen_tutar), 0) as toplam_odenen,
-        COALESCE(SUM(kalan_borc), 0) as toplam_kalan,
+        COALESCE(SUM(fatura_tutari - COALESCE(odenen_tutar, 0)), 0) as toplam_kalan,
         COUNT(CASE WHEN durum = 'Tamamlandı' THEN 1 END) as tamamlanan_kayit,
         COUNT(CASE WHEN durum = 'Ödenmedi' OR durum = 'Kısmi Ödeme' THEN 1 END) as bekleyen_kayit
       FROM cari_hesap 
