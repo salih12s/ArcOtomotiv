@@ -300,11 +300,21 @@ const initDatabase = async () => {
     console.log('✓ Aylık gelir görünümü oluşturuldu');
 
     console.log('\n✅ Tüm tablolar başarıyla oluşturuldu!');
-    process.exit(0);
   } catch (error) {
     console.error('Veritabanı oluşturma hatası:', error);
-    process.exit(1);
+    throw error;
   }
 };
 
-initDatabase();
+// Export the function
+module.exports = initDatabase;
+
+// Run if executed directly
+if (require.main === module) {
+  initDatabase()
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error(err);
+      process.exit(1);
+    });
+}
