@@ -52,6 +52,34 @@ const fixMissingColumns = async () => {
     `);
     console.log('✅ dis_alim.dis_alim_no kolonu eklendi/kontrol edildi');
     
+    await pool.query(`
+      ALTER TABLE dis_alim ADD COLUMN IF NOT EXISTS toplam_tutar DECIMAL(12,2) DEFAULT 0;
+    `);
+    console.log('✅ dis_alim.toplam_tutar kolonu eklendi/kontrol edildi');
+    
+    await pool.query(`
+      ALTER TABLE dis_alim ADD COLUMN IF NOT EXISTS odenen_tutar DECIMAL(12,2) DEFAULT 0;
+    `);
+    console.log('✅ dis_alim.odenen_tutar kolonu eklendi/kontrol edildi');
+    
+    await pool.query(`
+      ALTER TABLE dis_alim ADD COLUMN IF NOT EXISTS tarih DATE DEFAULT CURRENT_DATE;
+    `);
+    console.log('✅ dis_alim.tarih kolonu eklendi/kontrol edildi');
+    
+    await pool.query(`
+      ALTER TABLE dis_alim ADD COLUMN IF NOT EXISTS aciklama TEXT;
+    `);
+    console.log('✅ dis_alim.aciklama kolonu eklendi/kontrol edildi');
+    
+    // Parça işçilik tablosunu kontrol et
+    console.log('\nParça işçilik tablosu kontrol ediliyor...');
+    
+    await pool.query(`
+      ALTER TABLE parca_iscilik ADD COLUMN IF NOT EXISTS tur VARCHAR(20);
+    `);
+    console.log('✅ parca_iscilik.tur kolonu eklendi/kontrol edildi');
+    
     // İş emirleri tablosunu kontrol et
     console.log('\nİş emirleri tablosu kontrol ediliyor...');
     
