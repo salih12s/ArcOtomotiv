@@ -150,6 +150,15 @@ const initDatabase = async () => {
     await pool.query(`
       ALTER TABLE cari_hesap ADD COLUMN IF NOT EXISTS kayit_tipi VARCHAR(20) DEFAULT 'normal';
     `).catch(() => {});
+    await pool.query(`
+      ALTER TABLE cari_hesap ADD COLUMN IF NOT EXISTS giris_tarihi DATE;
+    `).catch(() => {});
+    await pool.query(`
+      ALTER TABLE cari_hesap ADD COLUMN IF NOT EXISTS fatura_no VARCHAR(100);
+    `).catch(() => {});
+    await pool.query(`
+      ALTER TABLE cari_hesap ADD COLUMN IF NOT EXISTS fatura_tarihi DATE;
+    `).catch(() => {});
     
     console.log('✓ Cari hesap tablosu oluşturuldu');
 
