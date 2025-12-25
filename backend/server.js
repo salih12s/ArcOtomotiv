@@ -4,8 +4,19 @@ require('dotenv').config();
 
 const app = express();
 
+// CORS configuration - Allow both local and production frontend
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'https://test4.salihsydm.com',
+    'https://arcotomotiv-production.up.railway.app'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
