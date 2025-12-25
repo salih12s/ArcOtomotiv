@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
              COALESCE(ch.plaka, ie.plaka) as plaka,
              COALESCE(ch.musteri_adi, m.ad_soyad) as musteri_adi_full,
              ch.fatura_tutari as toplam_tutar,
-             COALESCE(ch.kalan_tutar, (ch.fatura_tutari - ch.odenen_tutar)) as kalan_borc,
+             COALESCE(ch.kalan_borc, (ch.fatura_tutari - ch.odenen_tutar)) as kalan_borc,
              ch.sirket_adi,
              ch.kayit_tipi
       FROM cari_hesap ch
@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const kalan_tutar = (parseFloat(fatura_tutari) || 0) - (parseFloat(odenen_tutar) || 0);
+    const kalan_borc = (parseFloat(fatura_tutari) || 0) - (parseFloat(odenen_tutar) || 0);
 
     // Cari hesap numarası oluştur (CH-YYYY-XXXX veya şirket için SK-YYYY-XXXX)
     let cari_no = null;
@@ -95,7 +95,7 @@ router.post('/', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO cari_hesap (
-        is_emri_id, cari_no, musteri_adi, plaka, tarih, km, fatura_tutari, odenen_tutar, kalan_tutar, 
+        is_emri_id, cari_no, musteri_adi, plaka, tarih, km, fatura_tutari, odenen_tutar, kalan_borc, 
         durum, yapilan_islem, cari_musteri, sirket_adi, kayit_tipi, created_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true, $12, $13, NOW())
       RETURNING *`,
@@ -108,7 +108,7 @@ router.post('/', async (req, res) => {
         km ? parseInt(km) : null,
         parseFloat(fatura_tutari) || 0,
         parseFloat(odenen_tutar) || 0,
-        kalan_tutar,
+        kalan_borc,
         durum || 'Ödenmedi',
         yapilan_islem || '',
         sirket_adi || null,
@@ -267,7 +267,7 @@ router.post('/:id/odeme', async (req, res) => {
     
     const updateResult = await client.query(
       `UPDATE cari_hesap 
-       SET odenen_tutar = $1, kalan_tutar = $2, durum = $3, updated_at = CURRENT_TIMESTAMP
+       SET odenen_tutar = $1, kalan_borc = $2, durum = $3, updated_at = CURRENT_TIMESTAMP
        WHERE id = $4
        RETURNING *`,
       [yeniOdenenTutar, Math.max(0, yeniKalanTutar), yeniDurum, id]
@@ -336,7 +336,7 @@ router.post('/:id/taksit', async (req, res) => {
     await client.query('COMMIT');
     
     const cari = updateResult.rows[0];
-    const taksitTutari = parseFloat(cari.kalan_tutar) / taksit_sayisi;
+    const taksitTutari = parseFloat(cari.kalan_borc) / taksit_sayisi;
     
     res.json({
       message: 'Taksit planı oluşturuldu',
@@ -382,7 +382,7 @@ router.put('/:id', async (req, res) => {
            yapilan_islem = COALESCE($5, yapilan_islem), 
            fatura_tutari = COALESCE($6::numeric, fatura_tutari), 
            odenen_tutar = COALESCE($7::numeric, odenen_tutar),
-           kalan_tutar = COALESCE($6::numeric, fatura_tutari) - COALESCE($7::numeric, odenen_tutar),
+           kalan_borc = COALESCE($6::numeric, fatura_tutari) - COALESCE($7::numeric, odenen_tutar),
            durum = COALESCE($8, durum),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $9
@@ -474,7 +474,7 @@ router.get('/durum/odenmemis', async (req, res) => {
        FROM cari_hesap ch
        LEFT JOIN is_emirleri ie ON ch.is_emri_id = ie.id
        LEFT JOIN musteriler m ON ie.musteri_id = m.id
-       WHERE ch.durum != 'Ödendi' AND ch.kalan_tutar > 0
+       WHERE ch.durum != 'Ödendi' AND ch.kalan_borc > 0
        ORDER BY ch.tarih ASC`
     );
     res.json(result.rows);
@@ -540,7 +540,7 @@ router.get('/sirket/:sirketAdi/istatistik', async (req, res) => {
         COUNT(*) as toplam_kayit,
         COALESCE(SUM(fatura_tutari), 0) as toplam_borc,
         COALESCE(SUM(odenen_tutar), 0) as toplam_odenen,
-        COALESCE(SUM(kalan_tutar), 0) as toplam_kalan,
+        COALESCE(SUM(kalan_borc), 0) as toplam_kalan,
         COUNT(CASE WHEN durum = 'Tamamlandı' THEN 1 END) as tamamlanan_kayit,
         COUNT(CASE WHEN durum = 'Ödenmedi' OR durum = 'Kısmi Ödeme' THEN 1 END) as bekleyen_kayit
       FROM cari_hesap 

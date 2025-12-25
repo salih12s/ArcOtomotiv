@@ -37,9 +37,9 @@ router.get('/ozet', async (req, res) => {
            AND id NOT IN (SELECT is_emri_id FROM cari_hesap WHERE is_emri_id IS NOT NULL)), 0
         ) + 
         COALESCE(
-          (SELECT SUM(kalan_tutar) 
+          (SELECT SUM(kalan_borc) 
            FROM cari_hesap 
-           WHERE kalan_tutar > 0 
+           WHERE kalan_borc > 0 
            AND durum != 'Ödendi'), 0
         ) as bekleyen_odeme
     `);

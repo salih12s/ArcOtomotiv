@@ -254,7 +254,7 @@ router.post('/', async (req, res) => {
       
       await client.query(
         `INSERT INTO cari_hesap 
-         (is_emri_id, plaka, tarih, km, fatura_tutari, odenen_tutar, kalan_tutar, durum, yapilan_islem, taksit_sayisi, cari_musteri)
+         (is_emri_id, plaka, tarih, km, fatura_tutari, odenen_tutar, kalan_borc, durum, yapilan_islem, taksit_sayisi, cari_musteri)
          VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           isEmri.id, 
@@ -398,7 +398,7 @@ router.put('/:id', async (req, res) => {
     await client.query(
       `UPDATE cari_hesap 
        SET plaka = $1, km = $2, fatura_tutari = $3, yapilan_islem = $4, 
-           kalan_tutar = fatura_tutari - odenen_tutar, updated_at = CURRENT_TIMESTAMP
+           kalan_borc = fatura_tutari - odenen_tutar, updated_at = CURRENT_TIMESTAMP
        WHERE is_emri_id = $5`,
       [plaka?.toUpperCase(), km_mil, toplam_tutar, yapilan_islem, id]
     );
@@ -571,7 +571,7 @@ router.post('/:id/odeme', async (req, res) => {
     if (kalanTutar <= 0) {
       await client.query(
         `UPDATE cari_hesap 
-         SET durum = 'Tamamlandı', odenen_tutar = fatura_tutari, kalan_tutar = 0, updated_at = CURRENT_TIMESTAMP
+         SET durum = 'Tamamlandı', odenen_tutar = fatura_tutari, kalan_borc = 0, updated_at = CURRENT_TIMESTAMP
          WHERE is_emri_id = $1`,
         [id]
       );

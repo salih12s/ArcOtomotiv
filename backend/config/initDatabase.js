@@ -125,7 +125,7 @@ const initDatabase = async () => {
         km INTEGER,
         fatura_tutari DECIMAL(12,2) DEFAULT 0,
         odenen_tutar DECIMAL(12,2) DEFAULT 0,
-        kalan_tutar DECIMAL(12,2) DEFAULT 0,
+        kalan_borc DECIMAL(12,2) DEFAULT 0,
         durum VARCHAR(50) DEFAULT 'Ödenmedi', -- Ödendi, Ödenmedi, Taksitli, Cari
         yapilan_islem TEXT,
         taksit_sayisi INTEGER DEFAULT 0,
