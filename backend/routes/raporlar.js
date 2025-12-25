@@ -196,7 +196,7 @@ router.get('/gunluk-istatistik', async (req, res) => {
         ie.toplam_tutar,
         ie.odenen_tutar,
         ie.durum,
-        ie.islem_turu,
+        ie.is_turu,
         ie.giris_tarihi,
         ie.cikis_tarihi
       FROM is_emirleri ie
@@ -356,11 +356,11 @@ router.get('/islem-dagilimi', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        unnest(islem_turu) as islem_turu,
+        unnest(is_turu) as is_turu,
         COUNT(*) as sayi
       FROM is_emirleri
-      WHERE islem_turu IS NOT NULL
-      GROUP BY unnest(islem_turu)
+      WHERE is_turu IS NOT NULL
+      GROUP BY unnest(is_turu)
       ORDER BY sayi DESC
     `);
     res.json(result.rows);
