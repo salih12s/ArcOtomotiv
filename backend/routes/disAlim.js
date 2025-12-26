@@ -134,7 +134,7 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    const { tedarikci_id, tarih, aciklama, kalemler } = req.body;
+    const { tedarikci_id, tarih, aciklama, kalemler, plaka } = req.body;
     
     // Dış alım numarası oluştur
     const countResult = await client.query('SELECT COUNT(*) FROM dis_alim');
@@ -146,10 +146,10 @@ router.post('/', async (req, res) => {
     
     // Dış alım kaydı oluştur
     const disAlimResult = await client.query(`
-      INSERT INTO dis_alim (dis_alim_no, tedarikci_id, tarih, toplam_tutar, aciklama)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO dis_alim (dis_alim_no, tedarikci_id, tarih, toplam_tutar, aciklama, plaka)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [dis_alim_no, tedarikci_id, tarih || new Date(), toplam_tutar, aciklama]);
+    `, [dis_alim_no, tedarikci_id, tarih || new Date(), toplam_tutar, aciklama, plaka]);
     
     const dis_alim_id = disAlimResult.rows[0].id;
     

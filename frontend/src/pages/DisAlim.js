@@ -96,6 +96,7 @@ function DisAlim() {
     tedarikci_id: '',
     tarih: new Date().toISOString().split('T')[0],
     aciklama: '',
+    plaka: '',
     kalemler: [{ stok_adi: '', miktar: 1, birim_fiyat: 0, toplam: 0 }],
   });
 
@@ -212,6 +213,7 @@ function DisAlim() {
         tedarikci_id: '',
         tarih: new Date().toISOString().split('T')[0],
         aciklama: '',
+        plaka: '',
         kalemler: [{ stok_adi: '', miktar: 1, birim_fiyat: 0, toplam: 0 }],
       });
       fetchData();
@@ -579,6 +581,7 @@ function DisAlim() {
                     <TableCell sx={{ fontWeight: 600 }}>Alım No</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Tarih</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Tedarikçi</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Plaka</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>Açıklama</TableCell>
                     <TableCell sx={{ fontWeight: 600 }} align="right">Toplam Tutar</TableCell>
                     <TableCell sx={{ fontWeight: 600 }} align="center">İşlemler</TableCell>
@@ -587,7 +590,7 @@ function DisAlim() {
                 <TableBody>
                   {filteredDisAlimlar.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                         <Typography color="text.secondary">
                           {disAlimlar.length === 0 ? 'Henüz alım kaydı bulunmuyor' : 'Filtreye uygun alım kaydı bulunamadı'}
                         </Typography>
@@ -602,6 +605,11 @@ function DisAlim() {
                         <TableCell>{formatDate(alim.tarih)}</TableCell>
                         <TableCell>
                           <Typography fontWeight={600}>{alim.tedarikci_adi}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          {alim.plaka ? (
+                            <Chip label={alim.plaka} size="small" color="secondary" variant="outlined" />
+                          ) : '-'}
                         </TableCell>
                         <TableCell>{alim.aciklama || '-'}</TableCell>
                         <TableCell align="right">
@@ -699,6 +707,15 @@ function DisAlim() {
                 value={alimForm.tarih}
                 onChange={(e) => setAlimForm({ ...alimForm, tarih: e.target.value })}
                 InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Araba Plakası"
+                placeholder="34 ABC 123"
+                value={alimForm.plaka}
+                onChange={(e) => setAlimForm({ ...alimForm, plaka: e.target.value.toUpperCase() })}
               />
             </Grid>
             <Grid item xs={12}>
@@ -824,6 +841,14 @@ function DisAlim() {
                 <Typography variant="caption" color="text.secondary">Toplam Tutar</Typography>
                 <Typography fontWeight={700} color="primary">{formatCurrency(selectedAlim.toplam_tutar)}</Typography>
               </Grid>
+              {selectedAlim.plaka && (
+                <Grid item xs={12} sm={4}>
+                  <Typography variant="caption" color="text.secondary">Araba Plakası</Typography>
+                  <Typography fontWeight={600}>
+                    <Chip label={selectedAlim.plaka} size="small" color="secondary" />
+                  </Typography>
+                </Grid>
+              )}
 
               <Grid item xs={12}>
                 <Divider sx={{ my: 1 }} />
