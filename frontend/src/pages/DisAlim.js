@@ -1002,6 +1002,7 @@ function DisAlim() {
                       <TableHead>
                         <TableRow>
                           <TableCell sx={{ fontWeight: 600 }}>Tarih</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Plaka</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Ürün/Parça</TableCell>
                           <TableCell sx={{ fontWeight: 600 }} align="right">Miktar</TableCell>
                           <TableCell sx={{ fontWeight: 600 }} align="right">Toplam</TableCell>
@@ -1036,6 +1037,14 @@ function DisAlim() {
                             return (
                               <TableRow key={index} hover>
                                 <TableCell>{formatDate(alim.tarih)}</TableCell>
+                                <TableCell>
+                                  <Chip 
+                                    label={alim.plaka || '-'} 
+                                    size="small" 
+                                    variant="outlined"
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                </TableCell>
                                 <TableCell>
                                   <Typography fontWeight={500}>{alim.stok_adi || '-'}</Typography>
                                 </TableCell>
