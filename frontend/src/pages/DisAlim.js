@@ -109,7 +109,11 @@ function DisAlim() {
 
   const fetchData = async () => {
     try {
-      setLoading(true);
+      // İlk render'da loading göster
+      if (tedarikciler.length === 0 && disAlimlar.length === 0) {
+        setLoading(true);
+      }
+      
       const [tedarikciRes, alimRes] = await Promise.all([
         disAlimAPI.getTedarikciler(),
         disAlimAPI.getAll(),
