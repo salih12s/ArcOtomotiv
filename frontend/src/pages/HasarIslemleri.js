@@ -104,6 +104,7 @@ const emptyFormData = {
   sasi_giris: '',
   sasi_no: '',
   renk: '',
+  km: '',
   teslim_tarihi: '',
   aciklama: '',
   islem_turu: '',
@@ -385,7 +386,7 @@ function HasarIslemleri({ isAdmin }) {
         sasi_no: formData.sasi_no || '',
         sasi_giris: formData.sasi_giris || '',
         renk: formData.renk || '',
-        km_mil: 0,
+        km_mil: parseInt(formData.km) || 0,
         teslim_tarihi: formData.teslim_tarihi || null,
         islem_turu: formData.islem_turu,
         aciklama: fullAciklama,
@@ -467,6 +468,7 @@ function HasarIslemleri({ isAdmin }) {
         sasi_no: data.sasi_no || '',
         sasi_giris: data.sasi_giris || '',
         renk: data.renk || '',
+        km: data.km_mil || '',
         teslim_tarihi: data.teslim_tarihi ? data.teslim_tarihi.split('T')[0] : '',
         aciklama: aciklama,
         islem_turu: islemTuruStr,
@@ -535,7 +537,7 @@ function HasarIslemleri({ isAdmin }) {
         arac_tipi: formData.arac_tipi || '',
         sasi_no: formData.sasi_no || '',
         renk: formData.renk || '',
-        km_mil: 0,
+        km_mil: parseInt(formData.km) || 0,
         teslim_tarihi: formData.teslim_tarihi || null,
         islem_turu: formData.islem_turu ? `{${formData.islem_turu}}` : '{}',
         aciklama: fullAciklama,
@@ -733,6 +735,7 @@ function HasarIslemleri({ isAdmin }) {
                   <TableCell sx={{ fontWeight: 600 }}>Telefon</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Plaka</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Araç Tipi</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>KM</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Sigorta</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Ekspertiz No</TableCell>
                   <TableCell sx={{ fontWeight: 600 }} align="right">Toplam Tutar</TableCell>
@@ -745,7 +748,7 @@ function HasarIslemleri({ isAdmin }) {
               <TableBody>
                 {filteredIslemler.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={15} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">
                         {searchTerm ? 'Arama sonucu bulunamadı' : 'Henüz hasar kaydı bulunmuyor'}
                       </Typography>
@@ -805,6 +808,9 @@ function HasarIslemleri({ isAdmin }) {
                           <Tooltip title={row.arac_tipi || '-'} arrow>
                             <Typography variant="body2" noWrap>{row.arac_tipi || '-'}</Typography>
                           </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{row.km_mil ? row.km_mil.toLocaleString('tr-TR') : '-'}</Typography>
                         </TableCell>
                         <TableCell sx={{ maxWidth: 120 }}>
                           <Tooltip title={sigortaIsmi} arrow>
@@ -962,6 +968,11 @@ function HasarIslemleri({ isAdmin }) {
                 <Grid item xs={4}>
                   <TextField fullWidth size="small" label="Şasi Giriş" value={formData.sasi_giris}
                     onChange={(e) => setFormData({ ...formData, sasi_giris: e.target.value })} />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField fullWidth size="small" label="KM" type="number" value={formData.km}
+                    onChange={(e) => setFormData({ ...formData, km: e.target.value })}
+                    placeholder="Kilometre" />
                 </Grid>
                 <Grid item xs={4}>
                   <TextField fullWidth size="small" label="Teslim Tarihi" type="date" value={formData.teslim_tarihi}
@@ -1143,6 +1154,11 @@ function HasarIslemleri({ isAdmin }) {
                 <Grid item xs={4}>
                   <TextField fullWidth size="small" label="Renk" value={formData.renk}
                     onChange={(e) => setFormData({ ...formData, renk: e.target.value })} />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField fullWidth size="small" label="KM" type="number" value={formData.km}
+                    onChange={(e) => setFormData({ ...formData, km: e.target.value })}
+                    placeholder="Kilometre" />
                 </Grid>
                 <Grid item xs={4}>
                   <TextField fullWidth size="small" label="Teslim Tarihi" type="date" value={formData.teslim_tarihi}
@@ -1458,6 +1474,10 @@ function HasarIslemleri({ isAdmin }) {
               <Grid item xs={12} sm={3}>
                 <Typography variant="caption" color="text.secondary">Renk</Typography>
                 <Typography variant="body1">{selectedIslem.renk || '-'}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <Typography variant="caption" color="text.secondary">KM</Typography>
+                <Typography variant="body1" fontWeight={600}>{selectedIslem.km_mil ? selectedIslem.km_mil.toLocaleString('tr-TR') : '-'}</Typography>
               </Grid>
               <Grid item xs={12} sm={3}>
                 <Typography variant="caption" color="text.secondary">Şasi No</Typography>

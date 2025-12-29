@@ -80,6 +80,7 @@ const emptyFormData = {
   sasi_giris: '',
   sasi_no: '',
   renk: '',
+  km: '',
   teslim_tarihi: '',
   aciklama: '',
   islem_turu: '',
@@ -428,6 +429,7 @@ function Dashboard({ isAdmin }) {
         sasi_no: data.sasi_no || '',
         sasi_giris: data.sasi_giris || '',
         renk: data.renk || '',
+        km: data.km_mil || '',
         teslim_tarihi: data.teslim_tarihi ? data.teslim_tarihi.split('T')[0] : '',
         aciklama: data.aciklama || '',
         islem_turu: islemTuruStr,
@@ -485,7 +487,7 @@ function Dashboard({ isAdmin }) {
         arac_tipi: formData.arac_tipi || '',
         sasi_no: formData.sasi_no || '',
         renk: formData.renk || '',
-        km_mil: 0,
+        km_mil: parseInt(formData.km) || 0,
         teslim_tarihi: formData.teslim_tarihi || null,
         islem_turu: formData.islem_turu ? `{${formData.islem_turu}}` : '{}',
         aciklama: formData.aciklama || '',
@@ -634,7 +636,7 @@ function Dashboard({ isAdmin }) {
         sasi_no: formData.sasi_no || '',
         sasi_giris: formData.sasi_giris || '',
         renk: formData.renk || '',
-        km_mil: 0,
+        km_mil: parseInt(formData.km) || 0,
         teslim_tarihi: formData.teslim_tarihi || null,
         islem_turu: formData.islem_turu,
         aciklama: formData.aciklama || '',
@@ -849,6 +851,7 @@ function Dashboard({ isAdmin }) {
                   <TableCell sx={{ fontWeight: 600 }}>Telefon</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Plaka</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Araç Tipi</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>KM</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Renk</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Parçalar</TableCell>
                   <TableCell sx={{ fontWeight: 600 }} align="right">Tutar</TableCell>
@@ -861,7 +864,7 @@ function Dashboard({ isAdmin }) {
               <TableBody>
                 {filteredIsEmirleri.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={14} align="center" sx={{ py: 4 }}>
                       <Typography color="text.secondary">
                         {searchTerm ? 'Arama sonucu bulunamadı' : 'Henüz iş emri bulunmuyor'}
                       </Typography>
@@ -891,6 +894,9 @@ function Dashboard({ isAdmin }) {
                         <Tooltip title={row.arac_tipi || '-'} arrow>
                           <Typography variant="body2" fontSize="0.8rem" noWrap>{row.arac_tipi || '-'}</Typography>
                         </Tooltip>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontSize="0.8rem">{row.km_mil ? row.km_mil.toLocaleString('tr-TR') : '-'}</Typography>
                       </TableCell>
                       <TableCell sx={{ maxWidth: 80 }}>
                         <Tooltip title={row.renk || '-'} arrow>
@@ -997,6 +1003,9 @@ function Dashboard({ isAdmin }) {
                   onChange={(e) => setFormData({ ...formData, renk: e.target.value })} />
                 <TextField size="small" label="Şasi No" value={formData.sasi_no} sx={{ flex: '1 1 48%' }}
                   onChange={(e) => setFormData({ ...formData, sasi_no: e.target.value })} />
+                <TextField size="small" label="KM" type="number" value={formData.km} sx={{ flex: '1 1 48%' }}
+                  onChange={(e) => setFormData({ ...formData, km: e.target.value })}
+                  placeholder="Kilometre" />
                 <TextField size="small" label="Teslim Tarihi" type="date" value={formData.teslim_tarihi} sx={{ flex: '1 1 48%' }}
                   onChange={(e) => setFormData({ ...formData, teslim_tarihi: e.target.value })}
                   InputLabelProps={{ shrink: true }} />
@@ -1147,6 +1156,11 @@ function Dashboard({ isAdmin }) {
               <TextField fullWidth size="small" label="Renk" value={formData.renk}
                 onChange={(e) => setFormData({ ...formData, renk: e.target.value })} 
                 placeholder="Örn: Beyaz, Siyah, Gri" />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField fullWidth size="small" label="KM" type="number" value={formData.km}
+                onChange={(e) => setFormData({ ...formData, km: e.target.value })}
+                placeholder="Kilometre" />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField fullWidth size="small" label="Teslim Tarihi" type="date" value={formData.teslim_tarihi}
@@ -1341,6 +1355,10 @@ function Dashboard({ isAdmin }) {
               <Grid item xs={12} sm={3}>
                 <Typography variant="caption" color="text.secondary">Renk</Typography>
                 <Typography variant="body1">{selectedIsEmri.renk || '-'}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <Typography variant="caption" color="text.secondary">KM</Typography>
+                <Typography variant="body1" fontWeight={600}>{selectedIsEmri.km_mil ? selectedIsEmri.km_mil.toLocaleString('tr-TR') : '-'}</Typography>
               </Grid>
               <Grid item xs={12} sm={3}>
                 <Typography variant="caption" color="text.secondary">Şasi No</Typography>
